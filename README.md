@@ -1,10 +1,31 @@
 # jog [![Build Status](https://travis-ci.org/qiangyt/jog.svg?branch=master)](https://travis-ci.org/qiangyt/jog)
-Command line tool to view structured (JSON) log, as regular flat line format
+Replace 'tail -f <log file> && grep <keyword>'
 
+## Features
+The purpose is to help engineers to view local log files more conveniently, it is not alternative of either ELK or Filebeat & Fluentd & Logstash:
+
+   - Filtering by time range and log level.
+   - Searching log by arbitrary fields
+   - Convert and view JSON log files as flat lines, since JSON log is not friendly for human to read
+   - Colorizing the log files, for example, bold and red highlighted error
+
+It has both terminal mode and Web GUI mode as well. The Web GUI is from a embedded simple web server running locally. Both modes supports reading input stream from files and stdin, like 'tail -f ...'.
+
+The filter expression is C-style, almost no learning cost for developers
+
+It's written using Go, compiled as single file binaries without extra dependencies;And it is cross-platform (Windows, Mac OS X, Linux). Download them from releases.
+
+The roadmap includes a Visual Studio Code extension as well so that we could one-click open log by JOG in Visual Studio Code.
 
 ## Background
 
-Structured log, AKA. JSON line log, is great for log collectors but hard to read by developers themselves, usually during local development. This tool helps to on-the-fly convert those structured JSON log to traditional space-separated flat line log, friendly for developers. It then removes the effort to maintenain different output format for different environments (for ex. JSON log for test / production, but flat line log for local development).
+Not all logs are available in ELK, I started this project when needs a simple tool during local development to view JSON log, AKA. structured log. I really like JSON log since it is great for log collectors, but it is not convienent for developer to read. Then I got 2 approaches to do that:
+
+1. Some logging library, such as Bunyan, provides built-in tool to convert and view JSON log. However, only for Bunyan log format, and only for Node.js applications that uses Bunyan.
+
+2. Sets up 2 different log appenders, one outputing JSON log to ELK, another outputting regular flat lines in console. That works fine with extra effort and complexity. And another drawback is, a JSON log appender usually automatically outputs all fields, but a reuglar flag line log appender by default not. I have to manually keep them synced up for new fields.
+
+This tool helps to on-the-fly convert those structured JSON log to traditional space-separated flat line log, friendly for developers. It then removes the effort to maintenain different output format for different environments (for ex. JSON log for test / production, but flat line log for local development).
 
 ## Features
 
