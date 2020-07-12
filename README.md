@@ -39,9 +39,14 @@ Another important reason is that JSON log, AKA. structured log, becomes more and
 
 With a So,This tool can on-the-fly convert JSON log to traditional space-separated flat line log, friendly for developers. It then removes the effort to maintenain different output format for different environments (for ex. JSON log for test / production, but flat line log for local development).
 
-## Detailed Feature list
+## Design thinking
 
-   One of most-important design decision for Jog is that we should provide flexible and customizable feature but the default one should work well enough without customization and configuration.
+1. Feature should be flexible and customizable, but the default one should work well enough.
+
+2. Detect to get default
+
+
+## Detailed Feature list
 
    Anyway, although the feature list below is a little bit tedious and long but it is reserved to go through them quckly so that we could fully use Jog. It is a roadmap as well, with implementation status indicated.
 
@@ -91,6 +96,8 @@ With a So,This tool can on-the-fly convert JSON log to traditional space-separat
    |                                               | [] 6.1 YAML configuration file                       | Jog only supports YAML as configuration file format. Jog looks up them in locations: `$PWD/.jog`, `$HOME/.jog`,  `etc/.jog`. Jog configuration files in `$PWD/.jog` could be commited to project git repository to trace and share in the team. |
    |                                               | [] 6.2 Built-in default configuration file           | The built-in default configuration file is intellegent enough so most-likely works enough good. Run `jog -t` to see configuration example, and `jog -t full` to see full configuration items. |
    |                                               | [] 6.3 Support multiple profile                      | Each YAML configuration file specifies one profile which is the combination of output pattern & field extraction & field definition ..., and the file name is the profile name. Profile could be referred by name. |
+   |  [] 7. Remove PII fields automatically        |                                                      | For example, password. Configurable via a #000000 list.
+   |  [] 8. Telemetry                              |                                                      | Collect usage statistics to improve the detecting and get a better default configuration. Anonymous and turned on by default but of course allow to turn off |
 
 ## Usage:
   Download the executable binary to $PATH. For ex.
