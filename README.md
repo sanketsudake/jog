@@ -38,7 +38,7 @@ This tool helps to on-the-fly convert those structured JSON log to traditional s
    - [ ] Built-in supports as many as possible formats:
 
       - [x] Logstash
-      - [ ] Uber zap
+      - [x] Uber zap
       - [x] Bunyan (https://github.com/trentm/node-bunyan)
       - [x] Customizable format. Run `jog -t` to see configuration example.
 
