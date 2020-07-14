@@ -16,7 +16,7 @@ import (
 
 const (
 	// AppVersion ...
-	AppVersion = "v0.9.0"
+	AppVersion = "v0.9.5"
 )
 
 // PrintVersion ...
@@ -192,7 +192,7 @@ func main() {
 	}
 
 	if len(logFilePath) == 0 {
-		log.Println("Read JSON log lines from stdin")
+		log.Println("read JSON log lines from stdin")
 		ProcessReader(cfg, os.Stdin)
 	} else {
 		log.Printf("processing local JSON log file: %s\n", logFilePath)

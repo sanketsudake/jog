@@ -30,7 +30,7 @@ func (i LogFile) Open() {
 
 	create := true
 	if fi := FileStat(p, false); fi != nil {
-		if fi.Size() >= 10*1024*1024 {
+		if fi.Size() >= 100*1024*1024 {
 			RemoveFile(p)
 		} else {
 			create = false
@@ -69,8 +69,11 @@ func (i LogFile) Close() {
 
 // InitLogger ...
 func InitLogger() LogFile {
+	dir := os.ExpandEnv("${HOME}/.jog/log")
+	MkdirAll(dir)
+
 	r := &LogFileT{
-		path: filepath.Join(ExeDirectory(), "jog.log"),
+		path: filepath.Join(dir, "jog.log"),
 	}
 	r.Open()
 	return r
