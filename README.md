@@ -104,7 +104,7 @@ With a So,This tool can on-the-fly convert JSON log to traditional space-separat
   Download the executable binary to $PATH. For ex.
 
   ```shell
-     curl -L https://github.com/qiangyt/jog/releases/download/v0.9.2/jog.darwin -o /usr/local/bin/jog
+     curl -L https://github.com/qiangyt/jog/releases/download/v0.9.7/jog.darwin -o /usr/local/bin/jog
      chmod +x /usr/local/bin/jog
   ```
 
