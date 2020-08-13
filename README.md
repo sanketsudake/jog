@@ -101,10 +101,10 @@ With a So,This tool can on-the-fly convert JSON log to traditional space-separat
    |  [] 8. Telemetry                              |                                                      | Collect usage statistics to improve the detecting and get a better default configuration. Anonymous and turned on by default but of course allow to turn off |
 
 ## Usage:
-  Download the executable binary to $PATH. For ex.
+  Download the executable binary to $PATH. For ex., for Windows,
 
   ```shell
-     curl -L https://github.com/qiangyt/jog/releases/download/v0.9.9/jog.darwin -o /usr/local/bin/jog
+     curl -L https://github.com/qiangyt/jog/releases/download/v0.9.10/jog.exe -o /usr/local/bin/jog
      chmod +x /usr/local/bin/jog
   ```
 
@@ -115,10 +115,6 @@ With a So,This tool can on-the-fly convert JSON log to traditional space-separat
    * From stdin steam: `tail -f sample.log | ./jog`
 
    * Check full usage: `jog -h`
-
-     ```
-      Convert and view structured (JSON) log
-      v0.9.0
 
       Usage:
         jog  [option...]  <your JSON log file path>
@@ -134,7 +130,7 @@ With a So,This tool can on-the-fly convert JSON log to traditional space-separat
         6) view the WARN level config item:                               jog -cg fields.level.enums.WARN
 
       Options:
-        -c,  --config <config file path>                            Specify config YAML file path. The default is .jog.yaml or $HOME/.job.yaml
+        -c,  --config <config file path>                            Specify config YAML file path. The default is .jog.yaml or $HOME/.jog.yaml
         -cs, --config-set <config item path>=<config item value>    Set value to specified config item
         -cg, --config-get <config item path>                        Get value to specified config item
         -t,  --template                                             Print a config YAML file template
