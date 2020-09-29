@@ -150,7 +150,7 @@ With a So,This tool can on-the-fly convert JSON log to traditional space-separat
 
 ## Build
 
-   *  Install GOLANG
+   *  Install GOLANG version >= 1.13
 
    *  In current directory, run `./build.sh`
 
