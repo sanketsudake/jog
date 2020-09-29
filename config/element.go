@@ -7,15 +7,6 @@ import (
 	"github.com/qiangyt/jog/util"
 )
 
-// Printable ...
-type Printable interface {
-	IsEnabled() bool
-	GetColor(value string) util.Color
-	PrintBefore(color util.Color, builder *strings.Builder)
-	PrintBody(color util.Color, builder *strings.Builder, body string)
-	PrintAfter(color util.Color, builder *strings.Builder)
-}
-
 // ElementT ...
 type ElementT struct {
 	Color  util.Color
@@ -95,32 +86,34 @@ func (i Element) IsEnabled() bool {
 }
 
 // PrintBody ...
-func (i Element) PrintBody(color util.Color, builder *strings.Builder, a string) {
+func (i Element) PrintBody(color util.Color, builder *strings.Builder, body string) {
 	if color == nil {
-		builder.WriteString(a)
+		builder.WriteString(body)
 	} else {
-		builder.WriteString(color.Sprint(a))
+		builder.WriteString(color.Sprint(body))
 	}
 }
 
 // PrintBefore ...
 func (i Element) PrintBefore(color util.Color, builder *strings.Builder) {
-	if len(i.Before) > 0 {
-		if color == nil {
-			builder.WriteString(i.Before)
-		} else {
-			builder.WriteString(color.Sprint(i.Before))
-		}
+	if len(i.Before) == 0 {
+		return
+	}
+	if color == nil {
+		builder.WriteString(i.Before)
+	} else {
+		builder.WriteString(color.Sprint(i.Before))
 	}
 }
 
 // PrintAfter ...
 func (i Element) PrintAfter(color util.Color, builder *strings.Builder) {
-	if len(i.After) > 0 {
-		if color == nil {
-			builder.WriteString(i.After)
-		} else {
-			builder.WriteString(color.Sprint(i.After))
-		}
+	if len(i.After) == 0 {
+		return
+	}
+	if color == nil {
+		builder.WriteString(i.After)
+	} else {
+		builder.WriteString(color.Sprint(i.After))
 	}
 }

@@ -101,11 +101,11 @@ With a So,This tool can on-the-fly convert JSON log to traditional space-separat
    |  [] 8. Telemetry                              |                                                      | Collect usage statistics to improve the detecting and get a better default configuration. Anonymous and turned on by default but of course allow to turn off |
 
 ## Usage:
-  Download the executable binary to $PATH. For ex., for Mac OSX,
+  Download the executable binary (https://github.com/qiangyt/jog/releases/) to $PATH. For ex., for Mac OSX and Linux,
 
   ```shell
-     curl -L https://github.com/qiangyt/jog/releases/download/v0.9.11/jog.darwin -o /usr/local/bin/jog
-     chmod +x /usr/local/bin/jog
+     sudo curl -L https://github.com/qiangyt/jog/releases/download/v0.9.13/jog.$(echo `uname -s` | tr A-Z a-z) -o /usr/local/bin/jog
+     sudo chmod +x /usr/local/bin/jog
   ```
 
    * View a local JSON log file: `jog sample.log`
