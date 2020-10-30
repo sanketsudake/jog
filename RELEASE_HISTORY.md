@@ -1,3 +1,37 @@
+# targeting v1.0.0
+Test test test:
+1. unit test coverage: >= 80%
+2. design manual test case
+
+# v0.9.20 (2020-10-27)
+1. New feature: output the raw JSON but then able to apply filters (see example #9)
+
+# v0.9.19 (2020-10-24)
+1. New feature: specify the time range filter by natural date time, for ex. `1 day`, `2 hour`
+
+# v0.9.18 (2020-10-23)
+1. New feature: filtering by absolute time range (option `--before` and `--after`)
+
+# v0.9.17 (2020-10-22)
+1. New feature: filtering by logger level (option `-l`)
+
+Comments:
+  The filtering feature initially works. So far it only supports filtering by logger level. Time range filtering should be ready soon (v0.9.18?). Then feature freezed before v1.0.0 ready.
+
+# v0.9.16 (2020-10-21)
+1. Enhancement: if a field doesnot explicitly appears in output print pattern, I name such field as `implicit field`,
+   and now implicit field will be printed in `${others}`.
+   This is incompatible behavior - for old versions, implicit fields are hidden. Now begins from this version, to hide
+   the implicit field, must set `print` attribute as `false`. There're examples in default configuration template.
+2. Refine default template: some fields are printed with different color and style, some fields are hidden if be implicit.
+3. Fix: should not print a implicit field if its print attribute is false.
+4. Fix: for bunyan logger, it logger field takes 'id' as name, but then not printed.
+5. Enhancement: ${others} fields are sorted by alphabet order.
+6. Enhancement: detect logback error stacktrace.
+
+# v0.9.15.1
+1. Fix: regression by regression by https://github.com/qiangyt/jog/commit/cea3edbb5f6c19079e21688d657a85a5587d4394
+
 # v0.9.15
 1. Fix: failed to load default configuration file due to a stupid error that takes path as yaml.
    Thanks @https://github.com/nseba for reporting and @https://github.com/frudolph77 for reproducing.

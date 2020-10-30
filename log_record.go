@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/gookit/goutil/strutil"
 	"github.com/pkg/errors"
@@ -13,22 +15,13 @@ import (
 	"github.com/qiangyt/jog/util"
 )
 
-// StandardFieldT ...
-type StandardFieldT struct {
-	Value  util.AnyValue
-	Config config.Field
-}
-
-// StandardField ...
-type StandardField = *StandardFieldT
-
 // LogRecordT ...
 type LogRecordT struct {
 	LineNo int
 
 	Prefix         string
-	StandardFields []StandardField
-	OtherFields    map[string]util.AnyValue
+	StandardFields map[string]FieldValue
+	UnknownFields  map[string]util.AnyValue
 	Raw            string
 
 	Unknown     bool
@@ -39,15 +32,11 @@ type LogRecordT struct {
 type LogRecord = *LogRecordT
 
 // PrintElement ...
-func (i LogRecord) PrintElement(config Config, element util.Printable, builder *strings.Builder, a string) {
-	if !element.IsEnabled() {
-		return
-	}
-
+func (i LogRecord) PrintElement(cfg config.Configuration, element util.Printable, builder *strings.Builder, a string) {
 	var color util.Color
-	if config.Colorization {
+	if cfg.Colorization {
 		if i.StartupLine {
-			color = config.StartupLine.Color
+			color = cfg.StartupLine.Color
 		} else {
 			color = element.GetColor(a)
 		}
@@ -61,47 +50,72 @@ func (i LogRecord) PrintElement(config Config, element util.Printable, builder *
 }
 
 // PopulateOtherFields ...
-func (i LogRecord) PopulateOtherFields(cfg Config, result map[string]string) {
-	if len(i.OtherFields) == 0 {
+func (i LogRecord) PopulateOtherFields(cfg config.Configuration, unknownFields map[string]util.AnyValue, implicitStandardFields map[string]FieldValue, result map[string]string) {
+	if !cfg.HasOthersFieldInPattern {
 		return
 	}
 
-	n := cfg.Fields.Others.Name
-	s := cfg.Fields.Others.Separator
-	v := cfg.Fields.Others.Value
+	nameElement := cfg.Fields.Others.Name
+	separatorElement := cfg.Fields.Others.Separator
+	unknownFieldValueElement := cfg.Fields.Others.Value
+
+	// sort field names
+	var fNames []string
+	for fName := range unknownFields {
+		fNames = append(fNames, fName)
+	}
+	for fName := range implicitStandardFields {
+		fNames = append(fNames, fName)
+	}
+	sort.Strings(fNames)
 
 	builder := &strings.Builder{}
 	first := true
-	for fName, fValue := range i.OtherFields {
-		if !first {
-			builder.WriteString(", ")
-		}
-		first = false
 
-		i.PrintElement(cfg, n, builder, fName)
-		i.PrintElement(cfg, s, builder, "=")
-		i.PrintElement(cfg, v, builder, fValue.String())
+	for _, fName := range fNames {
+		fValueUnknown := unknownFields[fName]
+		if fValueUnknown != nil {
+			if !first {
+				builder.WriteString(", ")
+			}
+			first = false
+
+			i.PrintElement(cfg, nameElement, builder, fName)
+			i.PrintElement(cfg, separatorElement, builder, "=")
+			i.PrintElement(cfg, unknownFieldValueElement, builder, fValueUnknown.String())
+		} else {
+			fValueImplicit := implicitStandardFields[fName]
+
+			if !fValueImplicit.Config.IsEnabled() {
+				continue
+			}
+
+			if !first {
+				builder.WriteString(", ")
+			}
+			first = false
+
+			i.PrintElement(cfg, nameElement, builder, fName)
+			i.PrintElement(cfg, separatorElement, builder, "=")
+			i.PrintElement(cfg, fValueImplicit.Config, builder, fValueImplicit.Output)
+		}
 	}
 
 	result["others"] = builder.String()
 }
 
-// PopulateStandardFields ...
-func (i LogRecord) PopulateStandardFields(cfg Config, result map[string]string) {
-	if len(i.StandardFields) == 0 {
-		return
-	}
-
-	for _, f := range i.StandardFields {
+// PopulateExplicitStandardFields ...
+func (i LogRecord) PopulateExplicitStandardFields(cfg config.Configuration, explicitStandardFields map[string]FieldValue, result map[string]string) {
+	for _, f := range explicitStandardFields {
 		builder := &strings.Builder{}
-		i.PrintElement(cfg, f.Config, builder, f.Value.String())
+		i.PrintElement(cfg, f.Config, builder, f.Output)
 
 		result[f.Config.Name] = builder.String()
 	}
 }
 
 // AsFlatLine ...
-func (i LogRecord) AsFlatLine(cfg Config) string {
+func (i LogRecord) AsFlatLine(cfg config.Configuration) string {
 	builder := &strings.Builder{}
 
 	printStartLine := i.StartupLine && cfg.StartupLine.IsEnabled()
@@ -125,10 +139,12 @@ func (i LogRecord) AsFlatLine(cfg Config) string {
 			i.PrintElement(cfg, cfg.Prefix, builder, strutil.MustString(i.Prefix))
 		}
 
+		explicitStandardFields, implicitStandardFields := i.ExtractStandardFields(cfg)
+
 		result := make(map[string]string)
 
-		i.PopulateOtherFields(cfg, result)
-		i.PopulateStandardFields(cfg, result)
+		i.PopulateOtherFields(cfg, i.UnknownFields, implicitStandardFields, result)
+		i.PopulateExplicitStandardFields(cfg, explicitStandardFields, result)
 
 		builder.WriteString(os.Expand(cfg.Pattern, func(fieldName string) string {
 			return result[fieldName]
@@ -142,17 +158,87 @@ func (i LogRecord) AsFlatLine(cfg Config) string {
 	return builder.String()
 }
 
-func isStartupLine(cfg Config, raw string) bool {
+// ExtractStandardFields ...
+func (i LogRecord) ExtractStandardFields(cfg config.Configuration) (map[string]FieldValue, map[string]FieldValue) {
+	explicts := make(map[string]FieldValue)
+	implicits := make(map[string]FieldValue)
+
+	for n, f := range i.StandardFields {
+		if cfg.HasFieldInPattern(n) {
+			explicts[n] = f
+		} else {
+			implicits[n] = f
+		}
+	}
+
+	return explicts, implicits
+}
+
+// MatchesLevelFilter ...
+func (i LogRecord) MatchesLevelFilter(cfg config.Configuration, levelFilters []config.Enum) bool {
+	levelFieldValue := i.StandardFields["level"]
+	if levelFieldValue != nil {
+		levelFieldEnum := levelFieldValue.enumValue
+		for _, levelFilter := range levelFilters {
+			if levelFieldEnum == levelFilter {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// MatchesTimestampFilter ...
+func (i LogRecord) MatchesTimestampFilter(cfg config.Configuration, beforeFilter *time.Time, afterFilter *time.Time) bool {
+	timestampFieldValue := i.StandardFields["timestamp"]
+	if timestampFieldValue != nil {
+		timestampValue := timestampFieldValue.timeValue
+
+		beforeMatches := true
+		if beforeFilter != nil {
+			beforeMatches = timestampValue.Before(*beforeFilter) || timestampValue.Equal(*beforeFilter)
+		}
+
+		afterMatches := true
+		if afterFilter != nil {
+			afterMatches = timestampValue.After(*afterFilter) || timestampValue.Equal(*afterFilter)
+		}
+
+		return beforeMatches && afterMatches
+	}
+	return false
+}
+
+// MatchesFilters ...
+func (i LogRecord) MatchesFilters(cfg config.Configuration, options Options) bool {
+	levelFilters := options.GetLevelFilters()
+
+	if len(options.levelFilters) > 0 {
+		if !i.MatchesLevelFilter(cfg, levelFilters) {
+			return false
+		}
+	}
+
+	if options.HasTimestampFilter() {
+		if !i.MatchesTimestampFilter(cfg, options.BeforeFilter, options.AfterFilter) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func isStartupLine(cfg config.Configuration, raw string) bool {
 	contains := cfg.StartupLine.Contains
 	return len(contains) > 0 && strings.Contains(raw, contains)
 }
 
 // ParseAsRecord ...
-func ParseAsRecord(cfg Config, lineNo int, rawLine string) LogRecord {
+func ParseAsRecord(cfg config.Configuration, options Options, lineNo int, rawLine string) LogRecord {
 	r := &LogRecordT{
 		LineNo:         lineNo,
-		OtherFields:    make(map[string]util.AnyValue),
-		StandardFields: make([]StandardField, 0, 16),
+		UnknownFields:  make(map[string]util.AnyValue),
+		StandardFields: make(map[string]FieldValue),
 		Raw:            rawLine,
 		Unknown:        true,
 		StartupLine:    isStartupLine(cfg, rawLine),
@@ -185,16 +271,16 @@ func ParseAsRecord(cfg Config, lineNo int, rawLine string) LogRecord {
 	}
 	r.Unknown = false
 
-	standardsFieldConfig := cfg.Fields.StandardsMap
+	standardsFieldConfig := cfg.Fields.StandardsWithAllAliases
 	for fName, fValue := range allFields {
 		v := util.AnyValueFromRaw(lineNo, fValue, cfg.Replace)
 
 		fConfig, contains := standardsFieldConfig[fName]
 		if contains {
-			f := &StandardFieldT{Value: v, Config: fConfig}
-			r.StandardFields = append(r.StandardFields, f)
+			fName = fConfig.Name // normalize field name
+			r.StandardFields[fName] = NewFieldValue(cfg, options, fConfig, v)
 		} else {
-			r.OtherFields[fName] = v
+			r.UnknownFields[fName] = v
 		}
 	}
 

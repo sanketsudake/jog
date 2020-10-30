@@ -1,122 +1,72 @@
 # jog [![Build Status](https://travis-ci.org/qiangyt/jog.svg?branch=master)](https://travis-ci.org/qiangyt/jog)
-Tool for viewing local log, replacing `tail -f <log file> && grep <keyword>`
-
-## Features
-The purpose is to help engineers to easily view local log files, not alternative of stuff like ELK:
-
-   - Filtering by time range and log level
-   - Full-text searching log by arbitrary fields
-   - Convert and view JSON log as flat lines
-   - Views ELK log as stream, jsut like `tail -f`
-   - Colorizes the log files, for example, bold and red highlighted error
-   - The configuration could be shareable by team to consistent reusable log view during development, via GIT
-
-It has both terminal mode and Web GUI mode as well. The Web GUI is supported by an embedded web server running locally. Both modes supports reading input stream from files and stdin, like 'tail -f ...'.
-
-Besides ELK, another ongoing work is to view the log as stream, like `tail -f`, but upon outputted log from Splunk and others log service from IaaS vendors.
-
-The filter expression is SQL style, almost no learning cost for developers
-
-One of target is to easy use in pratical, so it's written using Go, compiled as single file binaries without extra dependencies; And it is cross-platform (Windows, Mac OS X, Linux). The binaryies is downloadable them from releases.
-
-The roadmap includes a Visual Studio Code extension as well so that we could one-click open log by JOG in Visual Studio Code.
-
-See detailed feature tables [#Detailed Feature Table].
+Command line tool to on-the-fly convert and view structured(JSON) log as regular flat line format. Jog supports follow mode like 'tail -f', as well as filtering by log level and time range.
 
 ## Background
 
-Such a tool like `tail -f <log file> && grep <keyword>` is still needed besides ELK, because:
+Structured log, AKA. JSON line log, is great for log collectors but hard to read by developers themselves during local development. Jog helps to on-the-fly convert those structured JSON log to traditional flat line log. It then decreases the need to have environment-specific output formats - for ex. we don't need any more to configure JSON log for test / production but flat line log for local development.
 
-1. ELK is not available everywhere all the time, for example, before log is connected to ELK, during initial development. It's overkilled for local development to output log to ELK, of course.
+Extra feature includes filtering by log level, by time ranage, helpful for daily local development as well.
 
-2. Streamed view of logs, by `tail -f`, is better than ELK in some cases.
+## Features
 
-Another important reason is that JSON log, AKA. structured log, becomes more and more popular, but JSON log is not convienent for developers to read. I know 2 approaches to do that:
+   Feature request is welcomed, for ex. new JSON log format. Submit issue for that please.
 
-1. Some logging library, such as Bunyan (https://github.com/trentm/node-bunyan), provides built-in tool to convert and view JSON log. However, it is only for Bunyan log format, that also means available only for Node.js applications only. In pratical, there're other issues for approach #1. For ex., I heavily use docker-compose for local development, however, `docker-compose log -f` inserts service name before each of log lines from containers, another example is PM2, a process management tool, which inserts extra process information before log lines too, all of such tools will break built-in tools like bunyan.
+   - [x] Support various of formats out-of-box and without customization.
+         Verified includes (submit issue for new one):
+      - [x] Logstash
+      - [x] GOLANG Uber zap (https://github.com/uber-go/zap)
+      - [x] Node.js Bunyan (https://github.com/trentm/node-bunyan)
+      - [ ] Node.js Winston (https://github.com/winstonjs/winston)
+      - [ ] Logrus
+      - [ ] AWS CloudWatch Logs
 
-2. Sets up 2 different log appenders, one outputing JSON log to ELK, another outputting regular flat lines to console. That works fine but with extra effort and complexity. And another drawback is, a JSON log appender usually automatically outputs all fields, but a reuglar flag line log appender doesnot by default. I have to manually keep them synced up for new fields.
+   - [x] Follow mode like `tail -f`, with optional beginning from latest specified lines like `tail -n`.
+         (see example #1 and #2)
 
-With a So,This tool can on-the-fly convert JSON log to traditional space-separated flat line log, friendly for developers. It then removes the effort to maintenain different output format for different environments (for ex. JSON log for test / production, but flat line log for local development).
+   - [x] Read from stdin (stream) or local file
 
-## Design thinking
+   - [ ] Straightforward filtering:
+      - [x] by log level (see example #6)
+      - [x] by absolute time range (see example #7)
+      - [x] by relative time range (see example #8)
+      - [ ] show surrounding logs
 
-1. Feature should be flexible and customizable, but the default one should work well enough.
+   - [x] output the raw JSON but then able to apply filters (see example #9)
 
-2. Detect to get default
+   - [x] Support JSON log mixed with non-JSON text, includes:
+      - [x] Mixed with regular flat log lines, for ex., springboot banner, and PM2 banner
+      - [x] Extra non-JSON prefix, followed by JSON log, for ex., docker-compose multi-services log
 
+   - [x] Supports nested escaped JSON value (escaped by `\"...\"`)
 
-## Detailed Feature list
+   - [x] Compressed logger name - only first letters of package names are outputed
 
-   Anyway, although the feature list below is a little bit tedious and long but it is reserved to go through them quckly so that we could fully use Jog. It is a roadmap as well, with implementation status indicated.
+   - [x] Print line number as line prefix
 
-   | Major Feature                                 | Minor Feature                                        | Detail |
-   | :-------------------------------------------- | :--------------------------------------------------- | :----- |
-   | [] 1. Filtering &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |        |
-   |                                               | [] 1.1 Filtering by arbitrary time range             |        |
-   |                                               | [] 1.2 Built-in frequently-used time range filtering | For ex., before 10 minutes |
-   |                                               | [] 1.3 Filtering by log level                        |        |
-   |                                               | [] 1.4 Filtering by log name                         |        |
-   |                                               | [] 1.5 Filtering by arbitrary fields                 |        |
-   |                                               | [] 1.6 SQL style filter expression                   |        |
-   | [] 2. Full-text searching                     |                                                      |        |
-   |                                               | [] 2.1 Available for arbitrary fields                |        |
-   |                                               | [] 2.2 Follows ELK query languge                     |        |
-   | [] 3. Input from both flat line and JSON line |                                                      |        |
-   |                                               | [x] 3.1 Input from local file                         |        |
-   |                                               | [x] 3.2 Input from stdin stream                       |        |
-   |                                               | [] 3.3 Input from docker native log                  |        |
-   |                                               | [] 3.4 Follow mode which is like `tail -f`           | turn on by default |
-   |                                               | [] 3.5 Able to stop on designated lines              | Designates by either filter expression or full-text search. Helpful to capture particular log, like a debug breakpoint. Resumeable. |
-   |                                               | [x] 3.6 Detect known fields automatically             | For ex., timestamp, leve, log name, PID, thread, message, stack trace, and so on. Log level value are quite similar too: INFO, WARN, ERROR, .... For exceptional cases, for example, Bunyan takes a number value 50 as ERROR level, this is doable by customizing the configuration profile. For Bunyan, that is built-in already. For others, we prefer to get them built-in too for the purpose of easy usage, could you help to submit a PR or an issue? |
-   |                                               | [] 3.7 Support various of field value types          | Number, String, Timestamp, Enum. Particularily, Enum is useful for presenting log level values. |
-   |                                               | [] 3.8 Detect datetime format                        | Datetime format usually follows standards. Jog supports ELK GROK to parse the datetime format. Datetime format usually follows ISO standards, so Jog provides built-in ISO datetime GROK and tries to extract them automatically. And actually, if don't need time-range filtering, we don't need datetime extraction mostlikely, just present datetime fields as plain text. |
-   |                                               | [x] 3.9 Support customized fields                     | All fields that doesn't match standard field keywords are taken as customized fields. |
-   |                                               | [x] 3.10 Detect startup line                          | Detects a line that indicates the startup is finished, then it is possible to highlight that line output to help developers to quickly locate it. Doable by regex matching.  |
-   |                                               | [] 3.11 Convert and normalize regular flat log       | Useful for sequential processing (highlight, filtering, and so on) |
-   |                                               | [] 3.12 For regular flat log, extract fields following Logstash compatible way (GROK) | |
-   |                                               | [] 3.13 For GROK field extraction, provides built-in ELK compatible GROK patterns as much as possible | |
-   |                                               | [x] 3.14 Convert and normalize JSON log line          |        |
-   |                                               | [x] 3.15 Detect various of JSON format                | There're various of JSON log format, major differences are just different keywords and level value and so on. Their keywords are quite similar and nearly able to be listed exhaustively via a case-insensitive dictionary. The dictionary is customizable. By detect those keywords, the default built-in conversion will work for most cases, without need to customization. And by comparing of matching keywords, we could tell if or not the input matches which known format. The target is to built-in support as many as possible known formats. |
-   |                                               | [x] 3.16 Support JSON lines mixed with regular lines  | Try best to convert the lines as JSON. If failed, take the line as non-JSON line, straightforward. For ex., for springboot banner lines. |
-   |                                               | [x] 3.17 Support JSON having non-JSON prefix          | For example, `docker-compose log -f` inserts service name before each of log lines from containers, then follows by JSON lines. Such prefix is extracted and remaining JSON parts could be still recognized. |
-   |                                               | [x] 3.18 Support nested JSON fields                   |        |
-   | [] 4. Customizable output                     |                                                      |        |
-   |                                               | [x] 4.1 Output as regular flat log lines, with customizable output pattern | Even for regular flat log line input, it is still useful when need to get a slice of logs filtering by time range, for example. |
-   |                                               | [] 4.2 Output as JSON log line                       | Also useful when need to get a slice of logs filtering by time range, for example. |
-   |                                               | [x] 4.3 Colorization                                  | For example, highlight log level with different color. Have built-in 16 RGB color, with extra style (bold, italic, background, ...) |
-   |                                               | [x] 4.4 Compress prefix                              | Some fields, for ex., file name, class name, logger names, may be a long and tedious fully-qualified. 'Compress prefix' could shorten them. We could specify prefix separators, for ex.. `.`(dot) or `/` (file path separator), and define the compress action: either remove non-first-letter or remove the whole prefix. We could specify a white-list as well to skip compressing for specific prefixs.
-   Many JAVA logging framework themselves supports compress already by removing non-first letter of package names, but we recommend to keep them uncompressed and use Jog to do the compression so that we could keep original full qualified message. When we found compressed logger names are not easy to read, we could dynamically turn off the compress to get back original full-qualified name back. That is more flexible than doing that in logger framework.
-   |                                               | [x] 4.5 Output log line number                        | Useful to reference
-   |                                               | [] 4.6 Output specified fields in separated line     | Useful for stacktrace and customized fields |
-   | [] 5. Output to either console or web browser |                                                      |         |
-   |                                               | [x] 5.1 Non-interactive console output mode           | all features, such as filtering and full-text search, should be configured via configuration file or command line arguments |
-   |                                               | [] 5.2 Interactive console output mode               | configuration could be changed via a the interactive console UI |
-   |                                               | [] 5.3 Output to web browser                         | like interactive console mode but in browser. Actually, Jog has an embeded tiny web server fo this purpose. |
-   |  [] 6. External configuration                 |                                                      |         |
-   |                                               | [] 6.1 YAML configuration file                       | Jog only supports YAML as configuration file format. Jog looks up them in locations: `$PWD/.jog`, `$HOME/.jog`,  `etc/.jog`. Jog configuration files in `$PWD/.jog` could be commited to project git repository to trace and share in the team. |
-   |                                               | [] 6.2 Built-in default configuration file           | The built-in default configuration file is intellegent enough so most-likely works enough good. Run `jog -t` to see configuration example, and `jog -t full` to see full configuration items. |
-   |                                               | [] 6.3 Support multiple profile                      | Each YAML configuration file specifies one profile which is the combination of output pattern & field extraction & field definition ..., and the file name is the profile name. Profile could be referred by name. |
-   |  [] 7. Remove PII fields automatically        |                                                      | For example, password. Configurable via a #000000 list.
-   |  [] 8. Telemetry                              |                                                      | Collect usage statistics to improve the detecting and get a better default configuration. Anonymous and turned on by default but of course allow to turn off |
+   - [x] Customizable although usually you no need it.
+         Run `jog -t` to export default configuration, or see [./static_files/DefaultConfiguration.yml](./static_files/DefaultConfiguration.yml)
+      - [x] Output pattern
+      - [x] Hightlight startup line
+      - [x] Colorization
+      - [x] Print unknown fields as 'others'
+      - [x] For fields that not explictly in output pattern, print as 'others'
+      - [x] Show/hide fields
+
+   - [x] A GOLANG application, so single across-platform executable binary, support Mac OSX, Windows, Linux.
 
 ## Usage:
   Download the executable binary (https://github.com/qiangyt/jog/releases/) to $PATH. For ex., for Mac OSX and Linux,
 
   ```shell
-     sudo curl -L https://github.com/qiangyt/jog/releases/download/v0.9.15/jog.$(echo `uname -s` | tr A-Z a-z) -o /usr/local/bin/jog
-     sudo chmod +x /usr/local/bin/jog
+     curl -L https://github.com/qiangyt/jog/releases/download/v0.9.20/jog.$(echo `uname -s` | tr A-Z a-z) -o /usr/local/bin/jog
+     chmod +x /usr/local/bin/jog
   ```
 
    * View a local JSON log file: `jog sample.log`
 
-     And, with specified number of lines: `jog -n 20 -f sample.log`
+     Or follows begining from latest 20 lines: `jog -n 20 -f sample.log`
 
-   * Follow stdin stream, for ex. docker: `docker logs -f my.container | ./jog`
-
-     Also, with specified number of lines: `docker logs -f my.container | ./jog -n 20`
-
-   * From stdin steam: `tail -f sample.log | ./jog`
+   * Follow stdin stream, for ex. docker: `docker logs -f my.container | ./jog -n 20`
 
    * Check full usage: `jog -h`
 
@@ -127,25 +77,31 @@ With a So,This tool can on-the-fly convert JSON log to traditional space-separat
         <stdin stream>  |  jog  [option...]
 
       Examples:
-         1) follow with last 10 lines:         jog -f app-20200701-1.log
-         2) follow with specified lines:       jog -n 100 -f app-20200701-1.log
-         3) with specified config file:        jog -c another.jog.yml app-20200701-1.log
-         4) view docker-compose log:           docker-compose logs | jog
-         5) print the default template:        jog -t
-         6) with WARN level foreground color set to RED: jog -cs fields.level.enums.WARN.color=FgRed app-20200701-1.log
-         7) view the WARN level config item:   jog -cg fields.level.enums.WARN
-         8) disable colorization:              jog -cs colorization=false app-20200701-1.log
+	     1) follow with last 10 lines:         jog -f app-20200701-1.log
+	     2) follow with specified lines:       jog -n 100 -f app-20200701-1.log
+	     3) with specified config file:        jog -c another.jog.yml app-20200701-1.log
+	     4) view docker-compose log:           docker-compose logs | jog
+	     5) print the default template:        jog -t
+	     6) only shows WARN & ERROR level:     jog -l warn -l error app-20200701-1.log
+	     7) shows with timestamp range:        jog --after 2020-7-1 --before 2020-7-3 app-20200701-1.log
+	     8) natural timestamp range:           jog --after "1 week" --before "2 days" app-20200701-1.log
+	     9) output raw JSON and apply time range filter:      jog --after "1 week" --before "2 days" app-20200701-1.log --json
+	     10) disable colorization:             jog -cs colorization=false app-20200701-1.log
 
       Options:
-         -c,  --config <config file path>                            Specify config YAML file path. The default is .jog.yaml or $HOME/.jog.yaml
-         -cs, --config-set <config item path>=<config item value>    Set value to specified config item
-         -cg, --config-get <config item path>                        Get value to specified config item
-         -f,  --follow                                               Follow mode - follow log output
-         -n,  --lines <number of tail lines>                         Number of tail lines. 10 by default, for follow mode
-         -t,  --template                                             Print a config YAML file template
-         -h,  --help                                                 Display this information
-         -V,  --version                                              Display app version information
-         -d,  --debug                                                Print more error detail
+        -a,  --after <timestamp>                                    'after' time filter. Auto-detect the timestamp format; can be natural datetime
+        -b,  --before <timestamp>                                   'before' time filter. Auto-detect the timestamp format; can be natural datetime
+        -c,  --config <config file path>                            Specify config YAML file path. The default is .jog.yaml or $HOME/.jog.yaml
+        -cs, --config-set <config item path>=<config item value>    Set value to specified config item
+        -cg, --config-get <config item path>                        Get value to specified config item
+        -d,  --debug                                                Print more error detail
+        -f,  --follow                                               Follow mode - follow log output
+        -j,  --json                                                 Output the raw JSON but then able to apply filters
+        -h,  --help                                                 Display this information
+        -l,  --level <level value>                                  Filter by log level. For ex. --level warn
+        -n,  --lines <number of tail lines>                         Number of tail lines. 10 by default, for follow mode
+        -t,  --template                                             Print a configuration YAML file template
+        -V,  --version                                              Display app version information
      ```
 
 ## Build
@@ -153,6 +109,19 @@ With a So,This tool can on-the-fly convert JSON log to traditional space-separat
    *  Install GOLANG version >= 1.13
 
    *  In current directory, run `./build.sh`
+
+## Status
+
+   Not yet ready for first release, still keep refactoring and fixing and adding new features. I create pre-release even for single bug fix or small feature. I won't test much before version 1.0 is ready.
+   Just feel free to use it since it wouldn't affect something.
+
+## TODO
+
+   * version 1.0 TODO
+     - unit test coverage: >= 80%
+     - manual test suite
+     - read from native Docker containers log
+     - SSH remote host to read log directly
 
 ## License
 

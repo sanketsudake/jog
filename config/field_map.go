@@ -9,9 +9,9 @@ import (
 
 // FieldMapT ...
 type FieldMapT struct {
-	Others       OtherFields
-	Standards    map[string]Field
-	StandardsMap map[string]Field
+	Others                  OtherFields
+	StandardsWithAllAliases map[string]Field
+	Standards               map[string]Field
 }
 
 // FieldMap ...
@@ -23,17 +23,22 @@ func (i FieldMap) Reset() {
 	i.Others.Reset()
 
 	i.Standards = make(map[string]Field)
-	i.StandardsMap = make(map[string]Field)
+	i.StandardsWithAllAliases = make(map[string]Field)
 }
 
 // UnmarshalYAML ...
 func (i FieldMap) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	return util.UnmarshalYAML(i, unmarshal)
+	return UnmarshalYAML(i, unmarshal)
 }
 
 // MarshalYAML ...
 func (i FieldMap) MarshalYAML() (interface{}, error) {
-	return util.MarshalYAML(i)
+	return MarshalYAML(i)
+}
+
+// Init ...
+func (i FieldMap) Init(cfg Configuration) {
+
 }
 
 // FromMap ...
@@ -46,22 +51,29 @@ func (i FieldMap) FromMap(m map[string]interface{}) error {
 	}
 
 	for k, v := range m {
+		//if i.config.HasFieldInPattern(k) == false {
+
+		//}
+
 		var f Field
 		if err := util.UnmashalYAMLAgain(v, &f); err != nil {
 			return err
 		}
 
+		if k == "logger" {
+			k = "logger"
+		}
 		f.Name = k
+		i.StandardsWithAllAliases[k] = f
 		i.Standards[k] = f
-		i.StandardsMap[k] = f
 
 		if !f.CaseSensitive {
 			lk := strings.ToLower(k)
 			if lk != k {
-				if old, alreadyHas := i.StandardsMap[lk]; old != f && alreadyHas {
+				if old, alreadyHas := i.StandardsWithAllAliases[lk]; old != f && alreadyHas {
 					return fmt.Errorf("duplicated field name: %s", lk)
 				}
-				i.StandardsMap[lk] = f
+				i.StandardsWithAllAliases[lk] = f
 			}
 		}
 
@@ -72,10 +84,10 @@ func (i FieldMap) FromMap(m map[string]interface{}) error {
 			aliases = f.Alias.LowercasedValues
 		}
 		for aliasName := range aliases {
-			if old, alreadyHas := i.StandardsMap[aliasName]; old != f && alreadyHas {
+			if old, alreadyHas := i.StandardsWithAllAliases[aliasName]; old != f && alreadyHas {
 				return fmt.Errorf("duplicated field alias name: %s", aliasName)
 			}
-			i.StandardsMap[aliasName] = f
+			i.StandardsWithAllAliases[aliasName] = f
 		}
 
 		delete(m, k)

@@ -1,56 +1,108 @@
-package main
+package config
 
 import (
+	"fmt"
 	"log"
 	"path/filepath"
+	"strings"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
-	"github.com/qiangyt/jog/config"
+	"github.com/qiangyt/jog/static"
 	"github.com/qiangyt/jog/util"
 	"gopkg.in/yaml.v2"
 )
 
-// ConfigT ...
-type ConfigT struct {
+// ConfigurationT ...
+type ConfigurationT struct {
 	// TODO: configurable
-	Colorization bool
-	Replace      map[string]string
-	Pattern      string
-	StartupLine  config.StartupLine `yaml:"startup-line"`
-	LineNo       config.Element     `yaml:"line-no"`
-	UnknownLine  config.Element     `yaml:"unknown-line"`
-	Prefix       config.Prefix
-	Fields       config.FieldMap
+	Colorization            bool
+	Replace                 map[string]string
+	Pattern                 string
+	fieldsInPattern         map[string]bool
+	HasOthersFieldInPattern bool
+	StartupLine             StartupLine `yaml:"startup-line"`
+	LineNo                  Element     `yaml:"line-no"`
+	UnknownLine             Element     `yaml:"unknown-line"`
+	Prefix                  Prefix
+	Fields                  FieldMap
+	LevelField              Field
+	TimestampField          Field
 }
 
-// Config ...
-type Config = *ConfigT
+// Configuration ...
+type Configuration = *ConfigurationT
 
 // UnmarshalYAML ...
-func (i Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	return util.UnmarshalYAML(i, unmarshal)
+func (i Configuration) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	return UnmarshalYAML(i, unmarshal)
 }
 
 // MarshalYAML ...
-func (i Config) MarshalYAML() (interface{}, error) {
-	return util.MarshalYAML(i)
+func (i Configuration) MarshalYAML() (interface{}, error) {
+	return MarshalYAML(i)
+}
+
+// Init ...
+func (i Configuration) Init(cfg Configuration) {
+	if cfg != nil {
+		panic(fmt.Errorf("root configure initialization"))
+	}
+
+	i.StartupLine.Init(i)
+	i.LineNo.Init(i)
+	i.UnknownLine.Init(i)
+	i.Prefix.Init(i)
+	i.Fields.Init(i)
+
+	levelField := i.Fields.Standards["level"]
+	if levelField != nil {
+		if !levelField.IsEnum() {
+			panic(fmt.Errorf("invalid configuration: field 'level' must be enum"))
+		}
+	}
+	i.LevelField = levelField
+
+	timestampField := i.Fields.Standards["timestamp"]
+	if timestampField != nil {
+		if timestampField.Type == FieldTypeAuto {
+			timestampField.Type = FieldTypeTime
+		} else if timestampField.Type != FieldTypeTime {
+			panic(fmt.Errorf("invalid configuration: type of field 'timestamp' must be 'time' or 'auto'"))
+		}
+	}
+	i.TimestampField = timestampField
 }
 
 // Reset ...
-func (i Config) Reset() {
+func (i Configuration) Reset() {
 	i.Colorization = true
 	i.Replace = make(map[string]string)
 	i.Pattern = ""
+	i.HasOthersFieldInPattern = false
+	i.fieldsInPattern = make(map[string]bool)
 	i.StartupLine.Reset()
 	i.LineNo.Reset()
 	i.UnknownLine.Reset()
 	i.Prefix.Reset()
 	i.Fields.Reset()
+	i.LevelField = nil
+}
+
+// HasFieldInPattern ...
+func (i Configuration) HasFieldInPattern(fieldName string) bool {
+	r, contains := i.fieldsInPattern[fieldName]
+	if contains {
+		return r
+	}
+
+	r = strings.Contains(i.Pattern, "${"+fieldName+"}")
+	i.fieldsInPattern[fieldName] = r
+	return r
 }
 
 // FromMap ...
-func (i Config) FromMap(m map[string]interface{}) error {
+func (i Configuration) FromMap(m map[string]interface{}) error {
 	var v interface{}
 
 	v = util.ExtractFromMap(m, "colorization")
@@ -66,6 +118,7 @@ func (i Config) FromMap(m map[string]interface{}) error {
 	v = util.ExtractFromMap(m, "pattern")
 	if v != nil {
 		i.Pattern = v.(string)
+		i.HasOthersFieldInPattern = i.HasFieldInPattern("others")
 	}
 
 	v = util.ExtractFromMap(m, "startup-line")
@@ -107,7 +160,7 @@ func (i Config) FromMap(m map[string]interface{}) error {
 }
 
 // ToMap ...
-func (i Config) ToMap() map[string]interface{} {
+func (i Configuration) ToMap() map[string]interface{} {
 	r := make(map[string]interface{})
 	r["replace"] = i.Replace
 	r["pattern"] = i.Pattern
@@ -148,30 +201,30 @@ func DetermineConfigFilePath() string {
 	return lookForConfigFile(dir)
 }
 
-// ConfigWithDefaultYamlFile ...
-func ConfigWithDefaultYamlFile() Config {
+// WithDefaultYamlFile ...
+func WithDefaultYamlFile() Configuration {
 	path := DetermineConfigFilePath()
 
 	if len(path) == 0 {
-		log.Println("config file not found, take default config")
-		return ConfigWithYamlFile(config.DefaultYAML)
+		log.Println("config file not found, take default one")
+		return WithYaml(static.DefaultConfiguration_yml)
 	}
 
 	log.Printf("config file: %s\n", path)
-	return ConfigWithYamlFile(path)
+	return WithYamlFile(path)
 }
 
-// ConfigWithYamlFile ...
-func ConfigWithYamlFile(path string) Config {
+// WithYamlFile ...
+func WithYamlFile(path string) Configuration {
 	log.Printf("config file: %s\n", path)
 
 	yamlText := string(util.ReadFile(path))
-	return ConfigWithYaml(yamlText)
+	return WithYaml(yamlText)
 }
 
-// ConfigWithYaml ...
-func ConfigWithYaml(yamlText string) Config {
-	r := &ConfigT{
+// WithYaml ...
+func WithYaml(yamlText string) Configuration {
+	r := &ConfigurationT{
 		Replace: map[string]string{
 			"\\\"": "\"",
 			"\\'":  "'",
@@ -180,14 +233,18 @@ func ConfigWithYaml(yamlText string) Config {
 			"\\\t": "\t",
 		},
 		Pattern:     "",
-		StartupLine: &config.StartupLineT{},
-		LineNo:      &config.ElementT{},
-		UnknownLine: &config.ElementT{},
-		Prefix:      &config.PrefixT{},
-		Fields:      &config.FieldMapT{},
+		StartupLine: &StartupLineT{},
+		LineNo:      &ElementT{},
+		UnknownLine: &ElementT{},
+		Prefix:      &PrefixT{},
+		Fields:      &FieldMapT{},
 	}
+
 	if err := yaml.Unmarshal([]byte(yamlText), &r); err != nil {
 		panic(errors.Wrap(err, "failed to unmarshal yaml: \n"+yamlText))
 	}
+
+	r.Init(nil)
+
 	return r
 }

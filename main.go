@@ -8,10 +8,13 @@ import (
 
 	"github.com/gookit/color"
 	"github.com/pkg/errors"
+	"github.com/qiangyt/jog/config"
 	"github.com/qiangyt/jog/jsonpath"
 	"github.com/qiangyt/jog/util"
 	"gopkg.in/yaml.v2"
 )
+
+//go:generate go run script/include_static.go
 
 // ParseConfigExpression ...
 func ParseConfigExpression(expr string) (string, string, error) {
@@ -23,11 +26,11 @@ func ParseConfigExpression(expr string) (string, string, error) {
 }
 
 // ReadConfig ...
-func ReadConfig(configFilePath string) Config {
+func ReadConfig(configFilePath string) config.Configuration {
 	if len(configFilePath) == 0 {
-		return ConfigWithDefaultYamlFile()
+		return config.WithDefaultYamlFile()
 	}
-	return ConfigWithYamlFile(configFilePath)
+	return config.WithYamlFile(configFilePath)
 }
 
 // PrintConfigItem ...
@@ -44,7 +47,7 @@ func PrintConfigItem(m map[string]interface{}, configItemPath string) {
 }
 
 // SetConfigItem ...
-func SetConfigItem(cfg Config, m map[string]interface{}, configItemPath string, configItemValue string) {
+func SetConfigItem(cfg config.Configuration, m map[string]interface{}, configItemPath string, configItemValue string) {
 	if err := jsonpath.Set(m, configItemPath, configItemValue); err != nil {
 		panic(errors.Wrap(err, ""))
 	}
@@ -54,12 +57,12 @@ func SetConfigItem(cfg Config, m map[string]interface{}, configItemPath string, 
 }
 
 func main() {
-	ok, cmdLine := ParseCommandLine()
+	ok, options := OptionsWithCommandLine()
 	if !ok {
 		return
 	}
 
-	if !cmdLine.Debug {
+	if !options.Debug {
 		defer func() {
 			if p := recover(); p != nil {
 				color.Red.Printf("%v\n\n", p)
@@ -72,24 +75,31 @@ func main() {
 	logFile := util.InitLogger()
 	defer logFile.Close()
 
-	cfg := ReadConfig(cmdLine.ConfigFilePath)
+	cfg := ReadConfig(options.ConfigFilePath)
 
-	if len(cmdLine.ConfigItemPath) > 0 {
+	if len(options.ConfigItemPath) > 0 {
 		m := cfg.ToMap()
-		if len(cmdLine.ConfigItemValue) > 0 {
-			SetConfigItem(cfg, m, cmdLine.ConfigItemPath, cmdLine.ConfigItemValue)
+		if len(options.ConfigItemValue) > 0 {
+			SetConfigItem(cfg, m, options.ConfigItemPath, options.ConfigItemValue)
 		} else {
-			PrintConfigItem(m, cmdLine.ConfigItemPath)
+			PrintConfigItem(m, options.ConfigItemPath)
 			return
 		}
 	}
 
-	if len(cmdLine.LogFilePath) == 0 {
+	if cfg.LevelField != nil {
+		options.InitLevelFilters(cfg.LevelField.Enums)
+	}
+	if cfg.TimestampField != nil {
+		options.InitTimestampFilters(cfg.TimestampField)
+	}
+
+	if len(options.LogFilePath) == 0 {
 		log.Println("read JSON log lines from stdin")
-		ProcessReader(cfg, cmdLine, os.Stdin, 1)
+		ProcessReader(cfg, options, os.Stdin, 1)
 	} else {
-		log.Printf("processing local JSON log file: %s\n", cmdLine.LogFilePath)
-		ProcessLocalFile(cfg, cmdLine, cmdLine.FollowMode, cmdLine.LogFilePath)
+		log.Printf("processing local JSON log file: %s\n", options.LogFilePath)
+		ProcessLocalFile(cfg, options, options.FollowMode, options.LogFilePath)
 	}
 
 	fmt.Println()

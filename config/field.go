@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"strings"
+	"time"
 
 	"github.com/gookit/goutil/strutil"
 	"github.com/qiangyt/jog/util"
@@ -24,12 +24,14 @@ type FieldT struct {
 	ElementT
 
 	Name           string
-	Alias          MultiString
+	Alias          util.MultiString
 	CaseSensitive  bool `yaml:"case-sensitive"`
 	CompressPrefix `yaml:"compress-prefix"`
 	Enums          EnumMap
 	Type           FieldType
 	TimeFormat     string `yaml:"time-format"`
+	Timezone       string `yaml:"timezone"`
+	TimeLocation   *time.Location
 }
 
 // Field ...
@@ -41,7 +43,7 @@ func (i Field) Reset() {
 
 	i.Name = ""
 
-	i.Alias = &MultiStringT{}
+	i.Alias = &util.MultiStringT{}
 	i.Alias.Set("")
 
 	i.CaseSensitive = false
@@ -54,22 +56,28 @@ func (i Field) Reset() {
 
 	i.Type = FieldTypeAuto
 	i.TimeFormat = ""
+	i.Timezone = ""
+	i.TimeLocation = nil
 }
 
 // UnmarshalYAML ...
 func (i Field) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	e := util.UnmarshalYAML(i, unmarshal)
+	e := UnmarshalYAML(i, unmarshal)
 	return e
 }
 
 // MarshalYAML ...
 func (i Field) MarshalYAML() (interface{}, error) {
-	return util.MarshalYAML(i)
+	return MarshalYAML(i)
 }
 
-// NotEnum ...
-func (i Field) NotEnum() bool {
-	return i.Enums.IsEmpty()
+// Init ...
+func (i Field) Init(cfg Configuration) {
+}
+
+// IsEnum ...
+func (i Field) IsEnum() bool {
+	return !i.Enums.IsEmpty()
 }
 
 // ToMap ...
@@ -79,7 +87,7 @@ func (i Field) ToMap() map[string]interface{} {
 	r["case-sensitive"] = i.CaseSensitive
 	r["alias"] = i.Alias.String()
 	r["compress-prefix"] = i.CompressPrefix.ToMap()
-	if !i.NotEnum() {
+	if i.IsEnum() {
 		r["enums"] = i.Enums.ToMap()
 	}
 
@@ -91,6 +99,10 @@ func (i Field) ToMap() map[string]interface{} {
 
 	if len(i.TimeFormat) > 0 {
 		r["time-format"] = i.TimeFormat
+	}
+
+	if len(i.Timezone) > 0 {
+		r["timezone"] = i.Timezone
 	}
 
 	return r
@@ -143,30 +155,24 @@ func (i Field) FromMap(m map[string]interface{}) error {
 		i.TimeFormat = strutil.MustString(timeFormatV)
 	}
 
+	timezoneV := util.ExtractFromMap(m, "timezone")
+	if timezoneV != nil {
+		i.Timezone = strutil.MustString(timezoneV)
+
+		loc, err := time.LoadLocation(i.Timezone)
+		if err != nil {
+			return fmt.Errorf("invalid timezone: %s", i.Timezone)
+		}
+		i.TimeLocation = loc
+	}
+
 	return nil
 }
 
 // GetColor ...
 func (i Field) GetColor(value string) util.Color {
-	if i.NotEnum() {
-		return i.Color
+	if i.IsEnum() {
+		return i.Enums.GetEnum(value).Color
 	}
-	return i.Enums.GetEnum(value).Color
-}
-
-// PrintBody ...
-func (i Field) PrintBody(color util.Color, builder *strings.Builder, body string) {
-	if i.NotEnum() {
-		if i.CompressPrefix.Enabled {
-			body = i.CompressPrefix.Compress(body)
-		}
-	} else {
-		body = i.Enums.GetEnum(body).Name
-	}
-
-	if color == nil {
-		builder.WriteString(body)
-	} else {
-		builder.WriteString(color.Sprint(body))
-	}
+	return i.Color
 }

@@ -7,7 +7,7 @@ import (
 // EnumT ...
 type EnumT struct {
 	Name  string
-	Alias MultiString
+	Alias util.MultiString
 	Color util.Color
 }
 
@@ -16,19 +16,24 @@ type Enum = *EnumT
 
 // UnmarshalYAML ...
 func (i Enum) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	return util.UnmarshalYAML(i, unmarshal)
+	return UnmarshalYAML(i, unmarshal)
 }
 
 // MarshalYAML ...
 func (i Enum) MarshalYAML() (interface{}, error) {
-	return util.MarshalYAML(i)
+	return MarshalYAML(i)
+}
+
+// Init ...
+func (i Enum) Init(cfg Configuration) {
+
 }
 
 // Reset ...
 func (i Enum) Reset() {
 	i.Name = ""
 
-	i.Alias = &MultiStringT{}
+	i.Alias = &util.MultiStringT{}
 	i.Alias.Reset()
 
 	i.Color = &util.ColorT{}
